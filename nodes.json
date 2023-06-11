@@ -1,0 +1,12 @@
+[
+    {"position": [4.4777, 51.9225], "assetType":"truck"},
+    {"position": [4.4857, 51.9227], "assetType":"rail"},
+    {"position": [4.4821, 51.9303], "assetType":"vessel"},
+    {"position": [4.4911, 51.9278], "assetType":"vessel"},
+    {"position": [4.5002, 51.9235], "assetType":"rail"},
+    {"position": [4.5038, 51.9170], "assetType":"truck"},
+    {"position": [4.4957, 51.9143], "assetType":"vessel"},
+    {"position": [4.4880, 51.9169], "assetType":"vessel"},
+    {"position": [4.4812, 51.9190], "assetType":"truck"},
+    {"position": [4.4770, 51.9256], "assetType":"container"}
+]

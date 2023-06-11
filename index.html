@@ -1,0 +1,181 @@
+<html>
+
+<head>
+  <title>Interleaving deck.gl with Mapbox Layers</title>
+  <script src="https://unpkg.com/deck.gl@^8.8.0/dist.min.js"></script>
+  <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
+
+  <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet" />
+</head>
+
+<body style="margin:0"></body>
+
+<script type="text/javascript">
+
+  const { MapboxLayer, ScenegraphLayer, LineLayer } = deck;
+
+  mapboxgl.accessToken = 'pk.eyJ1IjoiZmFrZXVzZXJnaXRodWIiLCJhIjoiY2pwOGlneGI4MDNnaDN1c2J0eW5zb2ZiNyJ9.mALv0tCpbYUPtzT7YysA2g';
+
+  const map = new mapboxgl.Map({
+    container: document.body,
+    style: 'mapbox://styles/mapbox/streets-v11',
+    center: [4.47917, 51.9225],
+    zoom: 15,
+    pitch: 60
+  });
+
+  let scatterPlotData = [
+    { position: [-122.402, 37.79], color: [255, 0, 0], radius: 1000 }
+  ];
+
+  let dataBuffer = [];
+  let arcData = [];
+
+
+  map.on('load', () => {
+    Promise.all([
+      fetch('nodes.json').then(response => response.json()),
+      fetch('edges.json').then(response => response.json())
+    ])
+      .then(([pointsData, arcsData]) => {
+
+        const firstLabelLayerId = map.getStyle().layers.find(layer => layer.type === 'symbol').id;
+        map.addLayer({
+          'id': '3d-buildings',
+          'source': 'composite',
+          'source-layer': 'building',
+          'filter': ['==', 'extrude', 'true'],
+          'type': 'fill-extrusion',
+          'minzoom': 15,
+          'paint': {
+            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-height': [
+              "interpolate", ["linear"], ["zoom"],
+              15, 0,
+              15.05, ["get", "height"]
+            ],
+            'fill-extrusion-base': [
+              "interpolate", ["linear"], ["zoom"],
+              15, 0,
+              15.05, ["get", "min_height"]
+            ],
+            'fill-extrusion-opacity': .6
+          }
+        }, firstLabelLayerId);
+
+        addScatterPlotLayer(pointsData);
+        addArcLayer(arcsData);
+      })
+      .catch(error => console.error('Error:', error));
+  });
+
+
+  function addScatterPlotLayer(data) {
+    setInterval(() => {
+      if (dataBuffer.length > 0) {
+
+        console.log("Refreshing layer");
+        scatterPlotData = scatterPlotData.concat(data);
+        scatterPlotData = scatterPlotData.concat(dataBuffer);
+        dataBuffer = [];
+        vessels = [];
+        rails = [];
+        trucks = [];
+        containers = [];
+
+        scatterPlotData.filter(function (value) { if (value.assetType === "vessel") { vessels.push(value) }});
+        scatterPlotData.filter(function (value) { if (value.assetType === "rail") { rails.push(value) }});
+        scatterPlotData.filter(function (value) { if (value.assetType === "truck") { trucks.push(value) }});
+        scatterPlotData.filter(function (value) { if (value.assetType === "container") { containers.push(value) }});
+    
+
+        if (map.getLayer('containers')) {
+          map.removeLayer('containers');
+        }
+        else {
+          map.addLayer(new MapboxLayer({
+            id: 'trucks',
+            type: ScenegraphLayer,
+            data: trucks,
+            scenegraph: 'src/truck.glb',
+            getPosition: d => d.position,
+            getColor: d => [0, 0, 255],
+            getRadius: d => 10,
+            getOrientation: [0, 0, 90],
+            getScale: [1, 1, 1],
+            opacity: 0.3
+          }));
+
+
+          map.addLayer(new MapboxLayer({
+            id: 'vessels',
+            type: ScenegraphLayer,
+            data: vessels,
+            scenegraph: 'src/vessel.glb',
+            getPosition: d => d.position,
+            getColor: d => [255, 0, 0],
+            getRadius: d => 10,
+            getOrientation: [0, 0, 90],
+            getScale: [1, 1, 1],
+            opacity: 0.3
+          }));
+
+          map.addLayer(new MapboxLayer({
+            id: 'rails',
+            type: ScenegraphLayer,
+            data: rails,
+            scenegraph: 'src/train.glb',
+            getPosition: d => d.position,
+            getColor: d => [0, 128, 0],
+            getRadius: d => 10,
+            getOrientation: [0, 0, 90],
+            getScale: [100, 100, 100],
+            opacity: 0.3
+          }));
+        }
+
+
+        map.addLayer(new MapboxLayer({
+          id: 'containers',
+          type: ScenegraphLayer,
+          data: containers,
+          scenegraph: 'src/dragon.glb',
+          getPosition: d => d.position,
+          getColor: d => [0, 0, 128],
+          getRadius: d => 10,
+          getOrientation: [0, 0, 90],
+          getScale: [100, 100, 100],
+          opacity: 0.3
+        }));
+
+
+      }
+    }, 10000);
+
+    setInterval(() => {
+      const newPoint = { position: [4.47917 + Math.random() * 0.01, 51.9225 + Math.random() * 0.01], assetType: "container" };
+      dataBuffer.push(newPoint);
+    }, 5000);
+
+  }
+
+
+  function addArcLayer(data) {
+    map.addLayer(new MapboxLayer({
+      id: 'deckgl-arc',
+      type: LineLayer,
+      data: data,
+      getSourcePosition: d => d.source,
+      getTargetPosition: d => d.target,
+      getSourceColor: [255, 208, 0],
+      getTargetColor: [0, 128, 255],
+      getWidth: 8
+    }));
+  }
+
+
+  map.addControl(new mapboxgl.NavigationControl());
+
+</script>
+
+</html>
